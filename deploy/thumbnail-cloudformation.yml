@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion : "2010-09-09"
+Parameters:
+  S3BucketName:
+    Type: String
+    Default: thumbnail-service-s3-bucket
+    Description: thumnail services description
+  S3Bucket:
+    Type: String 
+    Default: thumbanail-lambda-package
+    Description: House for the deployment package 
+  ThumbnailPackage:
+    Type: String
+    Default: ThumbnailService.zip
+    Description: thumnail services description package
+
+Resources:
+  ThumbnailS3Bucket:
+    Type: AWS::S3::Bucket
+    DependsOn:
+      - ThumbnailLambdaPermission
+    Properties:
+      BucketName: !Ref S3BucketName
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !GetAtt ThumbnailLambdaFunction.Arn
+            Filter:
+              S3Key:
+                Rules:
+                - Name: suffix
+                  Value: .png
+  #Grants S3 the permission to invoke our lambda 
+  ThumbnailLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref ThumbnailLambdaFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub 'arn:aws:s3:::${S3BucketName}'
+  #Setup the execution role for lambda 
+  ThumbnailLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+        - PolicyName: allowLogging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - logs:*
+              Resource: arn:aws:logs:*:*:*
+        - PolicyName: getAndDeleteObjects
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - s3:GetObject
+              - s3:DeleteObject
+              Resource:  !Sub 'arn:aws:s3:::${S3BucketName}/*'
+
+  ThumbnailLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Ref ThumbnailPackage
+      Handler: ThumbnailService::ThumbnailService.Function::FunctionHandler
+      Role: !GetAtt ThumbnailLambdaExecutionRole.Arn
+      Runtime: "dotnetcore3.1"
+      MemorySize: 512
+      Timeout: 180
