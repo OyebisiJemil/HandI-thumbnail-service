@@ -4,6 +4,10 @@ Parameters:
     Type: String
     Default: thumbnail-service-s3-bucket
     Description: thumnail services description
+  S3BucketName2:
+    Type: String
+    Default: thumbnail-result-s3-bucket
+    Description: thumnail result description
   S3Bucket:
     Type: String 
     Default: thumbanail-lambda-package
@@ -29,6 +33,10 @@ Resources:
                 Rules:
                 - Name: suffix
                   Value: .png
+  ThumbnailS3Bucket2:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketName2
   #Grants S3 the permission to invoke our lambda 
   ThumbnailLambdaPermission:
     Type: AWS::Lambda::Permission
@@ -68,6 +76,9 @@ Resources:
               - s3:GetObject
               - s3:DeleteObject
               Resource:  !Sub 'arn:aws:s3:::${S3BucketName}/*'
+            - Effect: Allow
+              Action: s3:*
+              Resource:  !Sub 'arn:aws:s3:::${S3BucketName2}/*'
 
   ThumbnailLambdaFunction:
     Type: AWS::Lambda::Function
